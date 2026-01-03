@@ -41,19 +41,45 @@ const getImageUrl = (chapter, page, urlIndex = 0) => {
 
 // Memoized zoomable image component with high-res support
 const ZoomablePage = memo(
-  ({ chapter, page, onLoad, onError, onFinalError }) => {
+  ({ chapter, page, onLoad, onError, onFinalError, onZoomChange }) => {
     const [urlIndex, setUrlIndex] = useState(0);
     const [hasTriedAll, setHasTriedAll] = useState(false);
+    const [isZoomed, setIsZoomed] = useState(false);
+    const [hasInitialized, setHasInitialized] = useState(false);
+    const imageZoomRef = useRef(null);
 
     // High-res dimensions
     const imageWidth = SCREEN_WIDTH * IMAGE_SCALE;
     const imageHeight = (PAGE_HEIGHT - 20) * IMAGE_SCALE;
 
+    const minScale = 1 / IMAGE_SCALE;
+
     // Reset when chapter changes
     useEffect(() => {
       setUrlIndex(0);
       setHasTriedAll(false);
+      setIsZoomed(false);
+      setHasInitialized(false);
     }, [chapter]);
+
+    // Mark as initialized after first render
+    useEffect(() => {
+      if (!hasInitialized) {
+        const timer = setTimeout(() => setHasInitialized(true), 100);
+        return () => clearTimeout(timer);
+      }
+    }, [hasInitialized]);
+
+    // Initial position - only used on first render
+    const initialPosition = useMemo(
+      () => ({
+        x: 0,
+        y: 0,
+        scale: minScale,
+        duration: 0,
+      }),
+      [minScale]
+    );
 
     const handleLoad = useCallback(() => {
       onLoad(urlIndex);
@@ -70,30 +96,41 @@ const ZoomablePage = memo(
       }
     }, [urlIndex, onFinalError]);
 
-    // Start centered at 0.5 scale so 2x image shows at screen size
-    const initialPosition = useMemo(
-      () => ({
-        x: 0,
-        y: 0,
-        scale: 1 / IMAGE_SCALE,
-        duration: 0,
-      }),
-      []
+    // Track when user zooms in/out
+    const handleMove = useCallback(
+      (position) => {
+        const zoomed = position.scale > minScale + 0.05;
+        if (zoomed !== isZoomed) {
+          setIsZoomed(zoomed);
+          onZoomChange?.(zoomed);
+        }
+      },
+      [minScale, isZoomed, onZoomChange]
     );
+
+    // Reset zoom to initial state
+    const handleDoubleClick = useCallback(() => {
+      // Do nothing - we want to disable double-click zoom entirely
+    }, []);
 
     return (
       <View style={styles.pageContainer}>
         <ImageZoom
+          ref={imageZoomRef}
           cropWidth={SCREEN_WIDTH}
           cropHeight={PAGE_HEIGHT}
           imageWidth={imageWidth}
           imageHeight={imageHeight}
-          minScale={1 / IMAGE_SCALE}
+          minScale={minScale}
           maxScale={4}
           enableSwipeDown={false}
-          enableCenterFocus={true}
+          enableCenterFocus={false}
+          enableDoubleClickZoom={false}
+          doubleClickInterval={0}
+          onMove={handleMove}
+          onDoubleClick={handleDoubleClick}
+          centerOn={!hasInitialized ? initialPosition : undefined}
           style={styles.imageZoom}
-          centerOn={initialPosition}
         >
           <Image
             source={{ uri: getImageUrl(chapter, page, urlIndex) }}
@@ -128,7 +165,13 @@ const MangaReader = ({ route, navigation }) => {
   const [chapterEnd, setChapterEnd] = useState(null);
   const [maxPagesToShow, setMaxPagesToShow] = useState(25);
   const [workingUrlIndex, setWorkingUrlIndex] = useState(null); // Track which URL works for this chapter
+  const [isAnyPageZoomed, setIsAnyPageZoomed] = useState(false); // Track if any page is zoomed
   const flatListRef = useRef(null);
+
+  // Handle zoom state changes from ZoomablePage
+  const handleZoomChange = useCallback((zoomed) => {
+    setIsAnyPageZoomed(zoomed);
+  }, []);
 
   const availablePages = useMemo(() => {
     if (chapterEnd !== null) {
@@ -231,6 +274,8 @@ const MangaReader = ({ route, navigation }) => {
     if (viewableItems.length > 0) {
       const visiblePage = viewableItems[0].item;
       setCurrentPage(visiblePage);
+      // Reset zoom state when changing pages
+      setIsAnyPageZoomed(false);
     }
   }, []);
 
@@ -288,9 +333,10 @@ const MangaReader = ({ route, navigation }) => {
         onLoad={(urlIndex) => handleImageLoad(page, urlIndex)}
         onError={() => {}}
         onFinalError={() => handleImageError(page)}
+        onZoomChange={handleZoomChange}
       />
     ),
-    [chapter, handleImageLoad, handleImageError]
+    [chapter, handleImageLoad, handleImageError, handleZoomChange]
   );
 
   const getItemLayout = useCallback(
@@ -354,6 +400,7 @@ const MangaReader = ({ route, navigation }) => {
         windowSize={3}
         initialNumToRender={2}
         updateCellsBatchingPeriod={100}
+        scrollEnabled={!isAnyPageZoomed}
       />
 
       {/* Page Controls */}
