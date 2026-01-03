@@ -29,6 +29,9 @@ const BASE_URLS = [
 const CONTROLS_HEIGHT = 130;
 const PAGE_HEIGHT = SCREEN_HEIGHT - CONTROLS_HEIGHT;
 
+// Render images at 2x resolution for sharp zooming
+const IMAGE_SCALE = 2;
+
 // Generate image URL based on chapter, page, and URL index
 const getImageUrl = (chapter, page, urlIndex = 0) => {
   const chapterNum = String(chapter).padStart(4, "0");
@@ -36,11 +39,15 @@ const getImageUrl = (chapter, page, urlIndex = 0) => {
   return `${BASE_URLS[urlIndex]}/${chapterNum}-${pageNum}.png`;
 };
 
-// Memoized zoomable image component with fallback URL support
+// Memoized zoomable image component with high-res support
 const ZoomablePage = memo(
   ({ chapter, page, onLoad, onError, onFinalError }) => {
     const [urlIndex, setUrlIndex] = useState(0);
     const [hasTriedAll, setHasTriedAll] = useState(false);
+
+    // High-res dimensions
+    const imageWidth = SCREEN_WIDTH * IMAGE_SCALE;
+    const imageHeight = (PAGE_HEIGHT - 20) * IMAGE_SCALE;
 
     // Reset when chapter changes
     useEffect(() => {
@@ -63,25 +70,37 @@ const ZoomablePage = memo(
       }
     }, [urlIndex, onFinalError]);
 
+    // Start centered at 0.5 scale so 2x image shows at screen size
+    const initialPosition = useMemo(
+      () => ({
+        x: 0,
+        y: 0,
+        scale: 1 / IMAGE_SCALE,
+        duration: 0,
+      }),
+      []
+    );
+
     return (
       <View style={styles.pageContainer}>
         <ImageZoom
           cropWidth={SCREEN_WIDTH}
           cropHeight={PAGE_HEIGHT}
-          imageWidth={SCREEN_WIDTH}
-          imageHeight={PAGE_HEIGHT - 20}
-          minScale={1}
+          imageWidth={imageWidth}
+          imageHeight={imageHeight}
+          minScale={1 / IMAGE_SCALE}
           maxScale={4}
           enableSwipeDown={false}
           enableCenterFocus={true}
           style={styles.imageZoom}
+          centerOn={initialPosition}
         >
           <Image
             source={{ uri: getImageUrl(chapter, page, urlIndex) }}
-            style={styles.image}
+            style={{ width: imageWidth, height: imageHeight }}
             contentFit="contain"
             transition={100}
-            cachePolicy="memory-disk"
+            cachePolicy="disk"
             onLoad={handleLoad}
             onError={handleError}
           />
