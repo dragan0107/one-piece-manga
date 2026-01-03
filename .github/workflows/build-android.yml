@@ -1,0 +1,90 @@
+name: Build Android APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prebuild Android
+        run: npx expo prebuild --platform android --clean
+
+      - name: Decode keystore
+        run: |
+          mkdir -p android/app/keystores
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystores/release.keystore
+
+      - name: Configure signing
+        run: |
+          # Add signing config to build.gradle
+          cat >> android/app/build.gradle << 'EOF'
+
+          android.signingConfigs {
+              release {
+                  storeFile file("keystores/release.keystore")
+                  storePassword System.getenv("KEYSTORE_PASSWORD") ?: ""
+                  keyAlias System.getenv("KEY_ALIAS") ?: ""
+                  keyPassword System.getenv("KEY_PASSWORD") ?: ""
+              }
+          }
+          android.buildTypes.release.signingConfig = android.signingConfigs.release
+          EOF
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Build release APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cd android
+          ./gradlew assembleRelease --no-daemon -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+
+      - name: Upload APK
+        id: upload_apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: one-piece-manga-release
+          path: android/app/build/outputs/apk/release/*.apk
+
+      - name: Generate QR Code for APK Download
+        run: |
+          # Get the artifact download URL with artifact ID
+          ARTIFACT_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ steps.upload_apk.outputs.artifact-id }}"
+          
+          # Generate QR code
+          sudo apt-get update && sudo apt-get install -y qrencode
+          
+          echo "📱 One Piece Manga APK Download QR Code:"
+          echo "Scan this QR code with your phone to download the APK:"
+          echo ""
+          qrencode -t utf8 "$ARTIFACT_URL"
+          echo ""
+          echo "🔗 Download URL: $ARTIFACT_URL"
+          echo "📦 Artifact name: one-piece-manga-release"
