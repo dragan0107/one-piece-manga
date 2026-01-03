@@ -13,6 +13,8 @@ import { Image } from 'expo-image';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const BASE_URL = 'https://hot.planeptune.us/manga/One-Piece';
+const CONTROLS_HEIGHT = 130; // Height of bottom controls
+const PAGE_HEIGHT = SCREEN_HEIGHT - CONTROLS_HEIGHT;
 
 // Generate image URL based on chapter and page
 const getImageUrl = (chapter, page) => {
@@ -46,7 +48,7 @@ const MangaReader = ({ route, navigation }) => {
     if (totalPages > 0 && startPage > 1) {
       setTimeout(() => {
         scrollViewRef.current?.scrollTo({
-          y: (startPage - 1) * SCREEN_HEIGHT,
+          y: (startPage - 1) * PAGE_HEIGHT,
           animated: false,
         });
       }, 300);
@@ -84,7 +86,7 @@ const MangaReader = ({ route, navigation }) => {
 
   const handleScroll = (event) => {
     const offsetY = event.nativeEvent.contentOffset.y;
-    const page = Math.round(offsetY / SCREEN_HEIGHT) + 1;
+    const page = Math.round(offsetY / PAGE_HEIGHT) + 1;
     if (page !== currentPage && page >= 1) {
       setCurrentPage(page);
     }
@@ -94,7 +96,7 @@ const MangaReader = ({ route, navigation }) => {
     if (page >= 1) {
       setCurrentPage(page);
       scrollViewRef.current?.scrollTo({
-        y: (page - 1) * SCREEN_HEIGHT,
+        y: (page - 1) * PAGE_HEIGHT,
         animated: true,
       });
     }
@@ -155,11 +157,13 @@ const MangaReader = ({ route, navigation }) => {
       
       <ScrollView
         ref={scrollViewRef}
-        pagingEnabled
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         style={styles.scrollView}
+        snapToInterval={PAGE_HEIGHT}
+        decelerationRate="fast"
+        contentContainerStyle={styles.scrollContent}
       >
         {pages.map((page) => (
           <View key={page} style={styles.pageContainer}>
@@ -236,16 +240,19 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: CONTROLS_HEIGHT,
+  },
   pageContainer: {
     width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    height: PAGE_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#000',
   },
   image: {
     width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT - 120,
+    height: PAGE_HEIGHT - 20,
   },
   loadingOverlay: {
     position: 'absolute',
