@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,14 +6,15 @@ import {
   TouchableOpacity,
   Text,
   ActivityIndicator,
-  ScrollView,
+  FlatList,
 } from 'react-native';
 import { Image } from 'expo-image';
+import ImageZoom from 'react-native-image-pan-zoom';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const BASE_URL = 'https://hot.planeptune.us/manga/One-Piece';
-const CONTROLS_HEIGHT = 130; // Height of bottom controls
+const CONTROLS_HEIGHT = 130;
 const PAGE_HEIGHT = SCREEN_HEIGHT - CONTROLS_HEIGHT;
 
 // Generate image URL based on chapter and page
@@ -23,6 +24,40 @@ const getImageUrl = (chapter, page) => {
   return `${BASE_URL}/${chapterNum}-${pageNum}.png`;
 };
 
+// Memoized zoomable image component for better performance
+const ZoomablePage = memo(({ chapter, page, onLoad, onError, hasError }) => {
+  return (
+    <View style={styles.pageContainer}>
+      <ImageZoom
+        cropWidth={SCREEN_WIDTH}
+        cropHeight={PAGE_HEIGHT}
+        imageWidth={SCREEN_WIDTH}
+        imageHeight={PAGE_HEIGHT - 20}
+        minScale={1}
+        maxScale={4}
+        enableSwipeDown={false}
+        enableCenterFocus={true}
+        style={styles.imageZoom}
+      >
+        <Image
+          source={{ uri: getImageUrl(chapter, page) }}
+          style={styles.image}
+          contentFit="contain"
+          transition={100}
+          cachePolicy="memory-disk"
+          onLoad={onLoad}
+          onError={onError}
+        />
+      </ImageZoom>
+      {hasError && (
+        <View style={styles.errorPage}>
+          <Text style={styles.errorPageText}>Page {page} not available</Text>
+        </View>
+      )}
+    </View>
+  );
+});
+
 const MangaReader = ({ route, navigation }) => {
   const { chapter, startPage = 1 } = route.params || { chapter: 237, startPage: 1 };
   const [currentPage, setCurrentPage] = useState(startPage);
@@ -30,13 +65,12 @@ const MangaReader = ({ route, navigation }) => {
   const [loadedPages, setLoadedPages] = useState({});
   const [loading, setLoading] = useState(true);
   const [allFailed, setAllFailed] = useState(false);
-  const scrollViewRef = useRef(null);
+  const flatListRef = useRef(null);
   
-  // Assume max 25 pages per chapter initially, we'll detect actual count
   const MAX_PAGES = 25;
+  const pages = Array.from({ length: MAX_PAGES }, (_, i) => i + 1);
 
   useEffect(() => {
-    // Reset state when chapter changes
     setLoading(true);
     setLoadedPages({});
     setTotalPages(0);
@@ -47,33 +81,30 @@ const MangaReader = ({ route, navigation }) => {
   useEffect(() => {
     if (totalPages > 0 && startPage > 1) {
       setTimeout(() => {
-        scrollViewRef.current?.scrollTo({
-          y: (startPage - 1) * PAGE_HEIGHT,
+        flatListRef.current?.scrollToIndex({
+          index: startPage - 1,
           animated: false,
         });
       }, 300);
     }
   }, [totalPages, startPage]);
 
-  const handleImageLoad = (page) => {
+  const handleImageLoad = useCallback((page) => {
     setLoadedPages(prev => {
       const updated = { ...prev, [page]: 'loaded' };
-      // Count successful loads
       const loadedCount = Object.values(updated).filter(v => v === 'loaded').length;
       if (loadedCount > 0) {
         setLoading(false);
-        // Update total pages based on highest loaded page
         const maxLoaded = Math.max(...Object.keys(updated).filter(k => updated[k] === 'loaded').map(Number));
-        setTotalPages(prev => Math.max(prev, maxLoaded));
+        setTotalPages(prevTotal => Math.max(prevTotal, maxLoaded));
       }
       return updated;
     });
-  };
+  }, []);
 
-  const handleImageError = (page) => {
+  const handleImageError = useCallback((page) => {
     setLoadedPages(prev => {
       const updated = { ...prev, [page]: 'error' };
-      // Check if all pages failed
       const totalChecked = Object.keys(updated).length;
       const allErrors = Object.values(updated).every(v => v === 'error');
       if (totalChecked >= 5 && allErrors) {
@@ -82,35 +113,30 @@ const MangaReader = ({ route, navigation }) => {
       }
       return updated;
     });
-  };
+  }, []);
 
-  const handleScroll = (event) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const page = Math.round(offsetY / PAGE_HEIGHT) + 1;
-    if (page !== currentPage && page >= 1) {
-      setCurrentPage(page);
+  const onViewableItemsChanged = useCallback(({ viewableItems }) => {
+    if (viewableItems.length > 0) {
+      const visiblePage = viewableItems[0].item;
+      setCurrentPage(visiblePage);
     }
-  };
+  }, []);
 
-  const goToPage = (page) => {
-    if (page >= 1) {
-      setCurrentPage(page);
-      scrollViewRef.current?.scrollTo({
-        y: (page - 1) * PAGE_HEIGHT,
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50,
+  }).current;
+
+  const goToPage = useCallback((page) => {
+    if (page >= 1 && page <= MAX_PAGES) {
+      flatListRef.current?.scrollToIndex({
+        index: page - 1,
         animated: true,
       });
     }
-  };
+  }, []);
 
-  const goToNextPage = () => {
-    goToPage(currentPage + 1);
-  };
-
-  const goToPrevPage = () => {
-    if (currentPage > 1) {
-      goToPage(currentPage - 1);
-    }
-  };
+  const goToNextPage = () => goToPage(currentPage + 1);
+  const goToPrevPage = () => currentPage > 1 && goToPage(currentPage - 1);
 
   const goToNextChapter = () => {
     navigation.replace('MangaReader', {
@@ -128,8 +154,23 @@ const MangaReader = ({ route, navigation }) => {
     }
   };
 
-  // Generate page array
-  const pages = Array.from({ length: MAX_PAGES }, (_, i) => i + 1);
+  const renderPage = useCallback(({ item: page }) => (
+    <ZoomablePage
+      chapter={chapter}
+      page={page}
+      onLoad={() => handleImageLoad(page)}
+      onError={() => handleImageError(page)}
+      hasError={loadedPages[page] === 'error'}
+    />
+  ), [chapter, loadedPages, handleImageLoad, handleImageError]);
+
+  const getItemLayout = useCallback((_, index) => ({
+    length: PAGE_HEIGHT,
+    offset: PAGE_HEIGHT * index,
+    index,
+  }), []);
+
+  const keyExtractor = useCallback((item) => item.toString(), []);
 
   if (allFailed) {
     return (
@@ -155,35 +196,25 @@ const MangaReader = ({ route, navigation }) => {
         </View>
       )}
       
-      <ScrollView
-        ref={scrollViewRef}
+      <FlatList
+        ref={flatListRef}
+        data={pages}
+        renderItem={renderPage}
+        keyExtractor={keyExtractor}
+        getItemLayout={getItemLayout}
+        pagingEnabled
         showsVerticalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        style={styles.scrollView}
-        snapToInterval={PAGE_HEIGHT}
-        decelerationRate="fast"
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        style={styles.flatList}
         contentContainerStyle={styles.scrollContent}
-      >
-        {pages.map((page) => (
-          <View key={page} style={styles.pageContainer}>
-            <Image
-              source={{ uri: getImageUrl(chapter, page) }}
-              style={styles.image}
-              contentFit="contain"
-              transition={200}
-              cachePolicy="memory-disk"
-              onLoad={() => handleImageLoad(page)}
-              onError={() => handleImageError(page)}
-            />
-            {loadedPages[page] === 'error' && (
-              <View style={styles.errorPage}>
-                <Text style={styles.errorPageText}>Page {page} not available</Text>
-              </View>
-            )}
-          </View>
-        ))}
-      </ScrollView>
+        // Performance optimizations
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={2}
+        windowSize={3}
+        initialNumToRender={2}
+        updateCellsBatchingPeriod={100}
+      />
 
       {/* Page Controls */}
       <View style={styles.controlsContainer}>
@@ -237,7 +268,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
-  scrollView: {
+  flatList: {
     flex: 1,
   },
   scrollContent: {
@@ -248,6 +279,9 @@ const styles = StyleSheet.create({
     height: PAGE_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#000',
+  },
+  imageZoom: {
     backgroundColor: '#000',
   },
   image: {
