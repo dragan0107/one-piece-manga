@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -25,7 +25,7 @@ const getImageUrl = (chapter, page) => {
 };
 
 // Memoized zoomable image component for better performance
-const ZoomablePage = memo(({ chapter, page, onLoad, onError, hasError }) => {
+const ZoomablePage = memo(({ chapter, page, onLoad, onError }) => {
   return (
     <View style={styles.pageContainer}>
       <ImageZoom
@@ -49,11 +49,6 @@ const ZoomablePage = memo(({ chapter, page, onLoad, onError, hasError }) => {
           onError={onError}
         />
       </ImageZoom>
-      {hasError && (
-        <View style={styles.errorPage}>
-          <Text style={styles.errorPageText}>Page {page} not available</Text>
-        </View>
-      )}
     </View>
   );
 });
@@ -65,16 +60,27 @@ const MangaReader = ({ route, navigation }) => {
   const [loadedPages, setLoadedPages] = useState({});
   const [loading, setLoading] = useState(true);
   const [allFailed, setAllFailed] = useState(false);
+  const [chapterEnd, setChapterEnd] = useState(null); // First page that failed = end of chapter
   const flatListRef = useRef(null);
   
-  const MAX_PAGES = 25;
-  const pages = Array.from({ length: MAX_PAGES }, (_, i) => i + 1);
+  const MAX_PAGES = 70; // Maximum pages to try loading (some early chapters have 50+ pages)
+
+  // Calculate available pages based on what we know
+  const availablePages = useMemo(() => {
+    if (chapterEnd !== null) {
+      // We know where the chapter ends
+      return Array.from({ length: chapterEnd - 1 }, (_, i) => i + 1);
+    }
+    // Still discovering, show up to MAX_PAGES
+    return Array.from({ length: MAX_PAGES }, (_, i) => i + 1);
+  }, [chapterEnd]);
 
   useEffect(() => {
     setLoading(true);
     setLoadedPages({});
     setTotalPages(0);
     setAllFailed(false);
+    setChapterEnd(null);
     setCurrentPage(startPage);
   }, [chapter]);
 
@@ -82,12 +88,12 @@ const MangaReader = ({ route, navigation }) => {
     if (totalPages > 0 && startPage > 1) {
       setTimeout(() => {
         flatListRef.current?.scrollToIndex({
-          index: startPage - 1,
+          index: Math.min(startPage - 1, availablePages.length - 1),
           animated: false,
         });
       }, 300);
     }
-  }, [totalPages, startPage]);
+  }, [totalPages, startPage, availablePages.length]);
 
   const handleImageLoad = useCallback((page) => {
     setLoadedPages(prev => {
@@ -96,7 +102,7 @@ const MangaReader = ({ route, navigation }) => {
       if (loadedCount > 0) {
         setLoading(false);
         const maxLoaded = Math.max(...Object.keys(updated).filter(k => updated[k] === 'loaded').map(Number));
-        setTotalPages(prevTotal => Math.max(prevTotal, maxLoaded));
+        setTotalPages(maxLoaded);
       }
       return updated;
     });
@@ -105,12 +111,32 @@ const MangaReader = ({ route, navigation }) => {
   const handleImageError = useCallback((page) => {
     setLoadedPages(prev => {
       const updated = { ...prev, [page]: 'error' };
-      const totalChecked = Object.keys(updated).length;
-      const allErrors = Object.values(updated).every(v => v === 'error');
-      if (totalChecked >= 5 && allErrors) {
-        setAllFailed(true);
-        setLoading(false);
+      
+      // Check if this is the first error after successful loads
+      // This indicates the end of the chapter
+      const loadedPageNumbers = Object.keys(updated)
+        .filter(k => updated[k] === 'loaded')
+        .map(Number);
+      
+      if (loadedPageNumbers.length > 0) {
+        // We have some loaded pages, check if this error marks the end
+        const maxLoaded = Math.max(...loadedPageNumbers);
+        if (page === maxLoaded + 1) {
+          // This is the first page after our last loaded page that failed
+          // This is likely the end of the chapter
+          setChapterEnd(page);
+          setTotalPages(maxLoaded);
+        }
+      } else {
+        // No pages loaded yet, check if all first pages failed
+        const totalChecked = Object.keys(updated).length;
+        const allErrors = Object.values(updated).every(v => v === 'error');
+        if (totalChecked >= 5 && allErrors) {
+          setAllFailed(true);
+          setLoading(false);
+        }
       }
+      
       return updated;
     });
   }, []);
@@ -127,16 +153,27 @@ const MangaReader = ({ route, navigation }) => {
   }).current;
 
   const goToPage = useCallback((page) => {
-    if (page >= 1 && page <= MAX_PAGES) {
+    const maxPage = totalPages > 0 ? totalPages : availablePages.length;
+    if (page >= 1 && page <= maxPage) {
       flatListRef.current?.scrollToIndex({
         index: page - 1,
         animated: true,
       });
     }
-  }, []);
+  }, [totalPages, availablePages.length]);
 
-  const goToNextPage = () => goToPage(currentPage + 1);
-  const goToPrevPage = () => currentPage > 1 && goToPage(currentPage - 1);
+  const goToNextPage = () => {
+    const maxPage = totalPages > 0 ? totalPages : availablePages.length;
+    if (currentPage < maxPage) {
+      goToPage(currentPage + 1);
+    }
+  };
+  
+  const goToPrevPage = () => {
+    if (currentPage > 1) {
+      goToPage(currentPage - 1);
+    }
+  };
 
   const goToNextChapter = () => {
     navigation.replace('MangaReader', {
@@ -160,9 +197,8 @@ const MangaReader = ({ route, navigation }) => {
       page={page}
       onLoad={() => handleImageLoad(page)}
       onError={() => handleImageError(page)}
-      hasError={loadedPages[page] === 'error'}
     />
-  ), [chapter, loadedPages, handleImageLoad, handleImageError]);
+  ), [chapter, handleImageLoad, handleImageError]);
 
   const getItemLayout = useCallback((_, index) => ({
     length: PAGE_HEIGHT,
@@ -187,6 +223,10 @@ const MangaReader = ({ route, navigation }) => {
     );
   }
 
+  const displayTotalPages = totalPages > 0 ? totalPages : '...';
+  const isLastPage = totalPages > 0 && currentPage >= totalPages;
+  const isFirstPage = currentPage === 1;
+
   return (
     <View style={styles.container}>
       {loading && (
@@ -198,7 +238,7 @@ const MangaReader = ({ route, navigation }) => {
       
       <FlatList
         ref={flatListRef}
-        data={pages}
+        data={availablePages}
         renderItem={renderPage}
         keyExtractor={keyExtractor}
         getItemLayout={getItemLayout}
@@ -208,7 +248,6 @@ const MangaReader = ({ route, navigation }) => {
         viewabilityConfig={viewabilityConfig}
         style={styles.flatList}
         contentContainerStyle={styles.scrollContent}
-        // Performance optimizations
         removeClippedSubviews={true}
         maxToRenderPerBatch={2}
         windowSize={3}
@@ -220,23 +259,24 @@ const MangaReader = ({ route, navigation }) => {
       <View style={styles.controlsContainer}>
         <View style={styles.controlsRow}>
           <TouchableOpacity
-            style={[styles.controlButton, currentPage === 1 && styles.controlButtonDisabled]}
+            style={[styles.controlButton, isFirstPage && styles.controlButtonDisabled]}
             onPress={goToPrevPage}
-            disabled={currentPage === 1}
+            disabled={isFirstPage}
           >
             <Text style={styles.controlButtonText}>‹ Prev</Text>
           </TouchableOpacity>
 
           <View style={styles.pageInfo}>
             <Text style={styles.pageText}>
-              {currentPage} {totalPages > 0 ? `/ ${totalPages}` : ''}
+              {currentPage} / {displayTotalPages}
             </Text>
             <Text style={styles.chapterText}>Chapter {chapter}</Text>
           </View>
 
           <TouchableOpacity
-            style={styles.controlButton}
+            style={[styles.controlButton, isLastPage && styles.controlButtonDisabled]}
             onPress={goToNextPage}
+            disabled={isLastPage}
           >
             <Text style={styles.controlButtonText}>Next ›</Text>
           </TouchableOpacity>
@@ -323,15 +363,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 20,
-  },
-  errorPage: {
-    position: 'absolute',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorPageText: {
-    color: '#666',
-    fontSize: 14,
   },
   controlsContainer: {
     position: 'absolute',
