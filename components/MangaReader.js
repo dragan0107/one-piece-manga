@@ -60,20 +60,19 @@ const MangaReader = ({ route, navigation }) => {
   const [loadedPages, setLoadedPages] = useState({});
   const [loading, setLoading] = useState(true);
   const [allFailed, setAllFailed] = useState(false);
-  const [chapterEnd, setChapterEnd] = useState(null); // First page that failed = end of chapter
+  const [chapterEnd, setChapterEnd] = useState(null);
+  const [maxPagesToShow, setMaxPagesToShow] = useState(25); // Start with 25, extend dynamically
   const flatListRef = useRef(null);
-  
-  const MAX_PAGES = 70; // Maximum pages to try loading (some early chapters have 50+ pages)
 
   // Calculate available pages based on what we know
   const availablePages = useMemo(() => {
     if (chapterEnd !== null) {
-      // We know where the chapter ends
+      // We know where the chapter ends - show only valid pages
       return Array.from({ length: chapterEnd - 1 }, (_, i) => i + 1);
     }
-    // Still discovering, show up to MAX_PAGES
-    return Array.from({ length: MAX_PAGES }, (_, i) => i + 1);
-  }, [chapterEnd]);
+    // Still discovering - show up to current max
+    return Array.from({ length: maxPagesToShow }, (_, i) => i + 1);
+  }, [chapterEnd, maxPagesToShow]);
 
   useEffect(() => {
     setLoading(true);
@@ -81,6 +80,7 @@ const MangaReader = ({ route, navigation }) => {
     setTotalPages(0);
     setAllFailed(false);
     setChapterEnd(null);
+    setMaxPagesToShow(25);
     setCurrentPage(startPage);
   }, [chapter]);
 
@@ -103,6 +103,16 @@ const MangaReader = ({ route, navigation }) => {
         setLoading(false);
         const maxLoaded = Math.max(...Object.keys(updated).filter(k => updated[k] === 'loaded').map(Number));
         setTotalPages(maxLoaded);
+        
+        // Dynamically extend if we're loading pages near the current limit
+        // and we haven't found the chapter end yet
+        setMaxPagesToShow(currentMax => {
+          if (maxLoaded >= currentMax - 3 && !prev[currentMax + 1]) {
+            // Extend by 20 more pages
+            return currentMax + 20;
+          }
+          return currentMax;
+        });
       }
       return updated;
     });
@@ -113,22 +123,27 @@ const MangaReader = ({ route, navigation }) => {
       const updated = { ...prev, [page]: 'error' };
       
       // Check if this is the first error after successful loads
-      // This indicates the end of the chapter
       const loadedPageNumbers = Object.keys(updated)
         .filter(k => updated[k] === 'loaded')
         .map(Number);
       
       if (loadedPageNumbers.length > 0) {
-        // We have some loaded pages, check if this error marks the end
         const maxLoaded = Math.max(...loadedPageNumbers);
-        if (page === maxLoaded + 1) {
-          // This is the first page after our last loaded page that failed
-          // This is likely the end of the chapter
-          setChapterEnd(page);
+        // Check if all pages from maxLoaded+1 to this page have failed
+        let allAfterMaxFailed = true;
+        for (let p = maxLoaded + 1; p <= page; p++) {
+          if (updated[p] !== 'error') {
+            allAfterMaxFailed = false;
+            break;
+          }
+        }
+        if (allAfterMaxFailed && page >= maxLoaded + 1) {
+          // This marks the end of the chapter
+          setChapterEnd(maxLoaded + 1);
           setTotalPages(maxLoaded);
         }
       } else {
-        // No pages loaded yet, check if all first pages failed
+        // No pages loaded yet
         const totalChecked = Object.keys(updated).length;
         const allErrors = Object.values(updated).every(v => v === 'error');
         if (totalChecked >= 5 && allErrors) {
@@ -242,12 +257,13 @@ const MangaReader = ({ route, navigation }) => {
         renderItem={renderPage}
         keyExtractor={keyExtractor}
         getItemLayout={getItemLayout}
-        pagingEnabled
         showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         style={styles.flatList}
-        contentContainerStyle={styles.scrollContent}
+        snapToInterval={PAGE_HEIGHT}
+        snapToAlignment="start"
+        decelerationRate="fast"
         removeClippedSubviews={true}
         maxToRenderPerBatch={2}
         windowSize={3}
@@ -310,9 +326,6 @@ const styles = StyleSheet.create({
   },
   flatList: {
     flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: CONTROLS_HEIGHT,
   },
   pageContainer: {
     width: SCREEN_WIDTH,
