@@ -9,7 +9,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#1a1a1a"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.onepiecemanga.app"
@@ -19,6 +21,12 @@
         "backgroundColor": "#1a1a1a"
       },
       "package": "com.onepiecemanga.app"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "92007fff-7e65-4d38-bd35-e5144b8f7bd6"
+      }
+    },
+    "owner": "drip016"
   }
 }
