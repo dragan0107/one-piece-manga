@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "One Piece Manga",
+    "slug": "one-piece-manga",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#1a1a1a"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.onepiecemanga.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1a1a1a"
+      },
+      "package": "com.onepiecemanga.app"
+    }
+  }
+}
