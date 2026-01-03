@@ -14,11 +14,13 @@ A React Native app for reading One Piece manga, fetching images from external so
 ## Installation
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
 
 2. Start the Expo development server:
+
 ```bash
 npm start
 ```
@@ -40,12 +42,13 @@ npm start
 Images are fetched from: `https://hot.planeptune.us/manga/One-Piece/[CHAPTER]-[PAGE].png`
 
 Format:
+
 - Chapter: 4-digit number (e.g., `0237`)
 - Page: 3-digit number (e.g., `012`)
 
 ## Requirements
 
-- Node.js 14+ 
+- Node.js 14+
 - npm or yarn
 - Expo CLI (installed globally or via npx)
 - Expo Go app on your mobile device (for testing)
@@ -72,4 +75,3 @@ one-piece-manga/
 ## License
 
 This project is for educational purposes only.
-
