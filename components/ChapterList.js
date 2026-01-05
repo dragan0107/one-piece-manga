@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Image,
 } from "react-native";
 import {
   initializeChapters,
@@ -142,8 +143,19 @@ const ChapterList = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>One Piece Manga</Text>
-        <Text style={styles.subtitle}>{latestChapter} chapters available</Text>
+        <View style={styles.titleRow}>
+          <Image
+            source={require("../assets/splash.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <View style={styles.titleText}>
+            <Text style={styles.title}>One Piece Manga</Text>
+            <Text style={styles.subtitle}>
+              {latestChapter} chapters available
+            </Text>
+          </View>
+        </View>
 
         <TouchableOpacity
           style={styles.refreshButton}
@@ -257,16 +269,28 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  logo: {
+    width: 52,
+    height: 52,
+    marginRight: 14,
+  },
+  titleText: {
+    flex: 1,
+  },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "700",
     color: COLORS.red,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   subtitle: {
     fontSize: 14,
     color: COLORS.textSecondary,
-    marginBottom: 14,
   },
   refreshButton: {
     paddingVertical: 12,
