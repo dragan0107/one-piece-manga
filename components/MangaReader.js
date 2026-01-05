@@ -45,12 +45,11 @@ const ZoomablePage = memo(
     const [urlIndex, setUrlIndex] = useState(0);
     const [hasTriedAll, setHasTriedAll] = useState(false);
     const [isZoomed, setIsZoomed] = useState(false);
-    const [hasInitialized, setHasInitialized] = useState(false);
     const imageZoomRef = useRef(null);
 
-    // High-res dimensions
+    // High-res dimensions - use FULL PAGE_HEIGHT for image (no padding)
     const imageWidth = SCREEN_WIDTH * IMAGE_SCALE;
-    const imageHeight = (PAGE_HEIGHT - 20) * IMAGE_SCALE;
+    const imageHeight = PAGE_HEIGHT * IMAGE_SCALE;
 
     const minScale = 1 / IMAGE_SCALE;
 
@@ -59,31 +58,36 @@ const ZoomablePage = memo(
       setUrlIndex(0);
       setHasTriedAll(false);
       setIsZoomed(false);
-      setHasInitialized(false);
     }, [chapter]);
 
-    // Mark as initialized after first render
+    // Position image at top after component mounts
     useEffect(() => {
-      if (!hasInitialized) {
-        const timer = setTimeout(() => setHasInitialized(true), 100);
-        return () => clearTimeout(timer);
-      }
-    }, [hasInitialized]);
-
-    // Initial position - only used on first render
-    const initialPosition = useMemo(
-      () => ({
-        x: 0,
-        y: 0,
-        scale: minScale,
-        duration: 0,
-      }),
-      [minScale]
-    );
+      // Small delay to ensure ImageZoom is ready
+      const timer = setTimeout(() => {
+        if (imageZoomRef.current) {
+          imageZoomRef.current.centerOn({
+            x: 0,
+            y: 0,
+            scale: minScale,
+            duration: 0,
+          });
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }, [minScale, chapter, page]);
 
     const handleLoad = useCallback(() => {
+      // Re-center to top position after image loads
+      if (imageZoomRef.current) {
+        imageZoomRef.current.centerOn({
+          x: 0,
+          y: 0,
+          scale: minScale,
+          duration: 0,
+        });
+      }
       onLoad(urlIndex);
-    }, [onLoad, urlIndex]);
+    }, [onLoad, urlIndex, minScale]);
 
     const handleError = useCallback(() => {
       if (urlIndex < BASE_URLS.length - 1) {
@@ -129,13 +133,18 @@ const ZoomablePage = memo(
           doubleClickInterval={0}
           onMove={handleMove}
           onDoubleClick={handleDoubleClick}
-          centerOn={!hasInitialized ? initialPosition : undefined}
           style={styles.imageZoom}
+          useNativeDriver={true}
+          panToMove={true}
+          pinchToZoom={true}
+          clickDistance={10}
+          horizontalOuterRangeOffset={() => {}}
         >
           <Image
             source={{ uri: getImageUrl(chapter, page, urlIndex) }}
             style={{ width: imageWidth, height: imageHeight }}
             contentFit="contain"
+            contentPosition={{ top: "20%" }}
             transition={100}
             cachePolicy="disk"
             onLoad={handleLoad}
@@ -401,6 +410,12 @@ const MangaReader = ({ route, navigation }) => {
         initialNumToRender={2}
         updateCellsBatchingPeriod={100}
         scrollEnabled={!isAnyPageZoomed}
+        scrollEventThrottle={16}
+        directionalLockEnabled={true}
+        disableIntervalMomentum={false}
+        overScrollMode="never"
+        bounces={false}
+        nestedScrollEnabled={true}
       />
 
       {/* Page Controls */}
@@ -471,7 +486,7 @@ const styles = StyleSheet.create({
   pageContainer: {
     width: SCREEN_WIDTH,
     height: PAGE_HEIGHT,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
     backgroundColor: "#000",
   },
@@ -479,8 +494,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
   },
   image: {
+    textAlign: "center",
     width: SCREEN_WIDTH,
-    height: PAGE_HEIGHT - 20,
+    height: PAGE_HEIGHT,
   },
   loadingOverlay: {
     position: "absolute",
