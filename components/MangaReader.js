@@ -183,10 +183,11 @@ const MangaReader = ({ route, navigation }) => {
   const [isAnyPageZoomed, setIsAnyPageZoomed] = useState(false); // Track if any page is zoomed
   const [isCompleted, setIsCompleted] = useState(false); // Track if chapter is marked completed
   const flatListRef = useRef(null);
+  const hasAddedToVisited = useRef(false); // Track if we've added this chapter to visited
 
-  // Track visited chapter and check completion status on mount
+  // Check completion status on mount (but don't add to visited yet)
   useEffect(() => {
-    addVisitedChapter(chapter);
+    hasAddedToVisited.current = false; // Reset for new chapter
     isChapterCompleted(chapter).then(setIsCompleted);
   }, [chapter]);
 
@@ -242,6 +243,12 @@ const MangaReader = ({ route, navigation }) => {
         setWorkingUrlIndex(urlIndex);
       }
 
+      // Add to visited only once, when first page loads successfully
+      if (!hasAddedToVisited.current) {
+        hasAddedToVisited.current = true;
+        addVisitedChapter(chapter);
+      }
+
       setLoadedPages((prev) => {
         const updated = { ...prev, [page]: "loaded" };
         const loadedCount = Object.values(updated).filter(
@@ -266,7 +273,7 @@ const MangaReader = ({ route, navigation }) => {
         return updated;
       });
     },
-    [workingUrlIndex]
+    [workingUrlIndex, chapter]
   );
 
   const handleImageError = useCallback((page) => {

@@ -149,9 +149,18 @@ const ChapterList = ({ navigation }) => {
 
   const handleGoToChapter = () => {
     const chapterNum = parseInt(selectedChapter);
-    if (chapterNum && chapterNum > 0) {
-      handleChapterPress(chapterNum);
+    if (!chapterNum || chapterNum < 1) {
+      return;
     }
+    if (chapterNum > latestChapter) {
+      Alert.alert(
+        "Invalid Chapter",
+        `Chapter ${chapterNum} doesn't exist. Latest available is Chapter ${latestChapter}.`,
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    handleChapterPress(chapterNum);
   };
 
   const renderChapterItem = ({ item }) => {
