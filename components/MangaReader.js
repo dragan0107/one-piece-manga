@@ -386,7 +386,7 @@ const MangaReader = ({ route, navigation }) => {
     <View style={styles.container}>
       {loading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#E6A54A" />
+          <ActivityIndicator size="large" color="#DC3545" />
           <Text style={styles.loadingText}>Loading Chapter {chapter}...</Text>
         </View>
       )}
@@ -475,27 +475,28 @@ const MangaReader = ({ route, navigation }) => {
   );
 };
 
-// One Piece Treasure Gold Theme
+// One Piece Crimson Theme - Luffy's Red
 const COLORS = {
-  // Backgrounds
-  bgDeep: "#0D0D0F",
-  bgSurface: "#16161A",
-  bgElevated: "#1E1E24",
-  bgCard: "#252530",
+  // Backgrounds - clean dark slate
+  bgDeep: "#0A0A0C",
+  bgSurface: "#121214",
+  bgElevated: "#1A1A1E",
+  bgCard: "#222228",
 
-  // Gold accent spectrum
-  gold: "#E6A54A",
-  goldDark: "#C8893A",
-  goldLight: "#F5C97A",
-  goldMuted: "rgba(230, 165, 74, 0.15)",
+  // Crimson accent - Luffy's signature red
+  red: "#DC3545",
+  redDark: "#B52A37",
+  redLight: "#FF6B78",
+  redMuted: "rgba(220, 53, 69, 0.12)",
 
-  // Text
-  textPrimary: "#FAFAFA",
-  textSecondary: "#B8B8C0",
-  textMuted: "#6B6B78",
+  // Text - warm and readable
+  textPrimary: "#F5F5F5",
+  textSecondary: "#A0A0A8",
+  textMuted: "#5C5C66",
 
-  // Accents
-  error: "#EF4444",
+  // Utility
+  error: "#DC3545",
+  border: "rgba(255, 255, 255, 0.08)",
 };
 
 const styles = StyleSheet.create({
@@ -537,28 +538,26 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 17,
     fontWeight: "600",
-    letterSpacing: 0.3,
   },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: COLORS.bgDeep,
-    padding: 24,
+    padding: 20,
   },
   errorText: {
     color: COLORS.error,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
     textAlign: "center",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   errorSubtext: {
     color: COLORS.textMuted,
     fontSize: 14,
     textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 20,
+    marginBottom: 20,
   },
   errorPage: {
     position: "absolute",
@@ -575,11 +574,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: COLORS.bgSurface,
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    paddingBottom: 28,
+    paddingBottom: 26,
     borderTopWidth: 1,
-    borderTopColor: COLORS.goldMuted,
+    borderTopColor: COLORS.border,
   },
   controlsRow: {
     flexDirection: "row",
@@ -588,26 +587,19 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   controlButton: {
-    backgroundColor: COLORS.gold,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-    borderRadius: 12,
-    minWidth: 88,
+    backgroundColor: COLORS.red,
+    paddingVertical: 11,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    minWidth: 85,
     alignItems: "center",
-    shadowColor: COLORS.gold,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
   },
   controlButtonDisabled: {
     backgroundColor: COLORS.bgCard,
-    opacity: 0.6,
-    shadowOpacity: 0,
-    elevation: 0,
+    opacity: 0.5,
   },
   controlButtonText: {
-    color: COLORS.bgDeep,
+    color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "700",
   },
@@ -616,35 +608,31 @@ const styles = StyleSheet.create({
   },
   pageText: {
     color: COLORS.textPrimary,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
-    letterSpacing: 0.5,
   },
   chapterText: {
-    color: COLORS.gold,
+    color: COLORS.red,
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 3,
     fontWeight: "600",
-    letterSpacing: 0.3,
   },
   chapterControls: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 10,
-    paddingTop: 12,
+    paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.06)",
+    borderTopColor: COLORS.border,
   },
   chapterButton: {
     backgroundColor: COLORS.bgElevated,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 10,
     flex: 1,
-    marginHorizontal: 5,
+    marginHorizontal: 4,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.04)",
   },
   chapterButtonText: {
     color: COLORS.textSecondary,
@@ -652,19 +640,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   button: {
-    backgroundColor: COLORS.gold,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 14,
-    marginTop: 20,
-    shadowColor: COLORS.gold,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: COLORS.red,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 10,
+    marginTop: 16,
   },
   buttonText: {
-    color: COLORS.bgDeep,
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
   },

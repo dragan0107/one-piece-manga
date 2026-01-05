@@ -7,12 +7,12 @@ import ChapterList from "./components/ChapterList";
 
 const Stack = createNativeStackNavigator();
 
-// One Piece Treasure Gold Theme
+// One Piece Crimson Theme
 const THEME = {
-  background: "#0D0D0F",
-  surface: "#16161A",
-  gold: "#E6A54A",
-  textPrimary: "#FAFAFA",
+  background: "#0A0A0C",
+  surface: "#121214",
+  red: "#DC3545",
+  textPrimary: "#F5F5F5",
 };
 
 export default function App() {
@@ -25,9 +25,9 @@ export default function App() {
           headerStyle: {
             backgroundColor: THEME.surface,
             borderBottomWidth: 1,
-            borderBottomColor: "rgba(230, 165, 74, 0.15)",
+            borderBottomColor: "rgba(255, 255, 255, 0.08)",
           },
-          headerTintColor: THEME.gold,
+          headerTintColor: THEME.red,
           headerTitleStyle: {
             fontWeight: "700",
             fontSize: 18,

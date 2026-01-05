@@ -13,7 +13,6 @@ import {
 import {
   initializeChapters,
   discoverNewChapters,
-  forceRediscover,
 } from "../utils/chapterStorage";
 
 const ChapterList = ({ navigation }) => {
@@ -85,39 +84,6 @@ const ChapterList = ({ navigation }) => {
     setCheckingNew(false);
   };
 
-  // Force full rediscovery
-  const handleForceRediscover = () => {
-    Alert.alert(
-      "Rediscover All Chapters",
-      "This will scan to find the actual latest chapter. This may take a moment.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Rediscover",
-          onPress: async () => {
-            setLoading(true);
-            try {
-              const latest = await forceRediscover();
-              setLatestChapter(latest);
-              setInitialLatest(latest);
-              setChapters(generateChapterList(latest));
-              Alert.alert(
-                "Discovery Complete",
-                `Found ${latest} chapters available.`,
-                [{ text: "OK" }]
-              );
-            } catch (error) {
-              Alert.alert("Error", "Failed to rediscover chapters.", [
-                { text: "OK" },
-              ]);
-            }
-            setLoading(false);
-          },
-        },
-      ]
-    );
-  };
-
   // Pull to refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -160,7 +126,7 @@ const ChapterList = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#E6A54A" />
+        <ActivityIndicator size="large" color="#DC3545" />
         <Text style={styles.loadingText}>
           {latestChapter === 0
             ? "Discovering chapters..."
@@ -179,27 +145,17 @@ const ChapterList = ({ navigation }) => {
         <Text style={styles.title}>One Piece Manga</Text>
         <Text style={styles.subtitle}>{latestChapter} chapters available</Text>
 
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={styles.refreshButton}
-            onPress={checkForNewChapters}
-            disabled={checkingNew}
-          >
-            {checkingNew ? (
-              <ActivityIndicator size="small" color="#E6A54A" />
-            ) : (
-              <Text style={styles.refreshButtonText}>🔄 Check New</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.rediscoverButton}
-            onPress={handleForceRediscover}
-            disabled={loading}
-          >
-            <Text style={styles.rediscoverButtonText}>🔍 Rediscover</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.refreshButton}
+          onPress={checkForNewChapters}
+          disabled={checkingNew}
+        >
+          {checkingNew ? (
+            <ActivityIndicator size="small" color="#DC3545" />
+          ) : (
+            <Text style={styles.refreshButtonText}>Check for new chapters</Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
@@ -228,9 +184,9 @@ const ChapterList = ({ navigation }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#E6A54A"
-            colors={["#E6A54A"]}
-            progressBackgroundColor="#16161A"
+            tintColor="#DC3545"
+            colors={["#DC3545"]}
+            progressBackgroundColor="#121214"
           />
         }
         removeClippedSubviews={true}
@@ -247,28 +203,28 @@ const ChapterList = ({ navigation }) => {
   );
 };
 
-// One Piece Treasure Gold Theme
+// One Piece Crimson Theme - Luffy's Red
 const COLORS = {
-  // Backgrounds
-  bgDeep: "#0D0D0F",
-  bgSurface: "#16161A",
-  bgElevated: "#1E1E24",
-  bgCard: "#252530",
+  // Backgrounds - clean dark slate
+  bgDeep: "#0A0A0C",
+  bgSurface: "#121214",
+  bgElevated: "#1A1A1E",
+  bgCard: "#222228",
 
-  // Gold accent spectrum
-  gold: "#E6A54A",
-  goldDark: "#C8893A",
-  goldLight: "#F5C97A",
-  goldMuted: "rgba(230, 165, 74, 0.15)",
+  // Crimson accent - Luffy's signature red
+  red: "#DC3545",
+  redDark: "#B52A37",
+  redLight: "#FF6B78",
+  redMuted: "rgba(220, 53, 69, 0.12)",
 
-  // Text
-  textPrimary: "#FAFAFA",
-  textSecondary: "#B8B8C0",
-  textMuted: "#6B6B78",
+  // Text - warm and readable
+  textPrimary: "#F5F5F5",
+  textSecondary: "#A0A0A8",
+  textMuted: "#5C5C66",
 
-  // Accents
-  success: "#4ADE80",
-  error: "#EF4444",
+  // Utility
+  success: "#22C55E",
+  border: "rgba(255, 255, 255, 0.08)",
 };
 
 const styles = StyleSheet.create({
@@ -287,7 +243,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 17,
     fontWeight: "600",
-    letterSpacing: 0.3,
   },
   loadingSubtext: {
     color: COLORS.textMuted,
@@ -295,119 +250,85 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   header: {
-    padding: 24,
-    paddingTop: 56,
-    paddingBottom: 20,
+    padding: 20,
+    paddingTop: 52,
+    paddingBottom: 18,
     backgroundColor: COLORS.bgSurface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.goldMuted,
+    borderBottomColor: COLORS.border,
   },
   title: {
-    fontSize: 32,
-    fontWeight: "800",
-    color: COLORS.gold,
-    marginBottom: 6,
-    letterSpacing: -0.5,
+    fontSize: 28,
+    fontWeight: "700",
+    color: COLORS.red,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
     color: COLORS.textSecondary,
-    marginBottom: 16,
-    letterSpacing: 0.2,
-  },
-  buttonRow: {
-    flexDirection: "row",
-    gap: 10,
+    marginBottom: 14,
   },
   refreshButton: {
-    flex: 1,
     paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: COLORS.bgElevated,
-    borderRadius: 12,
+    paddingHorizontal: 16,
+    backgroundColor: COLORS.redMuted,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 44,
-    borderWidth: 1,
-    borderColor: COLORS.goldMuted,
   },
   refreshButtonText: {
-    color: COLORS.gold,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  rediscoverButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: COLORS.bgElevated,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
-  },
-  rediscoverButtonText: {
-    color: COLORS.textSecondary,
+    color: COLORS.red,
     fontSize: 14,
     fontWeight: "600",
   },
   searchContainer: {
     flexDirection: "row",
     padding: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingTop: 14,
+    paddingBottom: 14,
     backgroundColor: COLORS.bgSurface,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.04)",
+    borderBottomColor: COLORS.border,
   },
   input: {
     flex: 1,
     backgroundColor: COLORS.bgElevated,
     color: COLORS.textPrimary,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    borderRadius: 10,
     fontSize: 16,
     marginRight: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
   },
   goButton: {
-    backgroundColor: COLORS.gold,
-    paddingHorizontal: 26,
-    paddingVertical: 14,
-    borderRadius: 12,
+    backgroundColor: COLORS.red,
+    paddingHorizontal: 24,
+    paddingVertical: 13,
+    borderRadius: 10,
     justifyContent: "center",
-    shadowColor: COLORS.gold,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
   goButtonText: {
-    color: COLORS.bgDeep,
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
   },
   listContainer: {
-    padding: 16,
-    paddingTop: 12,
+    padding: 14,
+    paddingTop: 10,
   },
   chapterItem: {
     backgroundColor: COLORS.bgElevated,
-    borderRadius: 14,
-    marginBottom: 10,
+    borderRadius: 12,
+    marginBottom: 8,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.04)",
   },
   chapterContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 18,
-    paddingVertical: 16,
+    padding: 16,
+    paddingVertical: 15,
   },
   chapterInfo: {
     flexDirection: "row",
@@ -415,27 +336,23 @@ const styles = StyleSheet.create({
   },
   chapterNumber: {
     color: COLORS.textPrimary,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "600",
-    letterSpacing: 0.2,
   },
   newBadge: {
-    marginLeft: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: COLORS.gold,
-    borderRadius: 6,
-    color: COLORS.bgDeep,
+    marginLeft: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: COLORS.red,
+    borderRadius: 5,
+    color: "#FFFFFF",
     fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 0.5,
+    fontWeight: "700",
     overflow: "hidden",
   },
   chapterArrow: {
-    color: COLORS.goldDark,
-    fontSize: 22,
-    fontWeight: "300",
-    opacity: 0.7,
+    color: COLORS.textMuted,
+    fontSize: 20,
   },
 });
 
