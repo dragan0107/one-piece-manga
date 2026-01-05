@@ -17,6 +17,12 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import ImageZoom from "react-native-image-pan-zoom";
+import {
+  addVisitedChapter,
+  isChapterCompleted,
+  markChapterCompleted,
+  unmarkChapterCompleted,
+} from "../utils/chapterStorage";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -175,7 +181,25 @@ const MangaReader = ({ route, navigation }) => {
   const [maxPagesToShow, setMaxPagesToShow] = useState(25);
   const [workingUrlIndex, setWorkingUrlIndex] = useState(null); // Track which URL works for this chapter
   const [isAnyPageZoomed, setIsAnyPageZoomed] = useState(false); // Track if any page is zoomed
+  const [isCompleted, setIsCompleted] = useState(false); // Track if chapter is marked completed
   const flatListRef = useRef(null);
+
+  // Track visited chapter and check completion status on mount
+  useEffect(() => {
+    addVisitedChapter(chapter);
+    isChapterCompleted(chapter).then(setIsCompleted);
+  }, [chapter]);
+
+  // Toggle completion status
+  const toggleCompleted = async () => {
+    if (isCompleted) {
+      await unmarkChapterCompleted(chapter);
+      setIsCompleted(false);
+    } else {
+      await markChapterCompleted(chapter);
+      setIsCompleted(true);
+    }
+  };
 
   // Handle zoom state changes from ZoomablePage
   const handleZoomChange = useCallback((zoomed) => {
@@ -460,14 +484,31 @@ const MangaReader = ({ route, navigation }) => {
             onPress={goToPrevChapter}
             disabled={chapter === 1}
           >
-            <Text style={styles.chapterButtonText}>‹ Previous Chapter</Text>
+            <Text style={styles.chapterButtonText}>‹ Prev Ch.</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.completeButton,
+              isCompleted && styles.completeButtonActive,
+            ]}
+            onPress={toggleCompleted}
+          >
+            <Text
+              style={[
+                styles.completeButtonText,
+                isCompleted && styles.completeButtonTextActive,
+              ]}
+            >
+              {isCompleted ? "✓ Completed" : "Mark Complete"}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.chapterButton}
             onPress={goToNextChapter}
           >
-            <Text style={styles.chapterButtonText}>Next Chapter ›</Text>
+            <Text style={styles.chapterButtonText}>Next Ch. ›</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -496,6 +537,8 @@ const COLORS = {
 
   // Utility
   error: "#DC3545",
+  success: "#22C55E",
+  successMuted: "rgba(34, 197, 94, 0.15)",
   border: "rgba(255, 255, 255, 0.08)",
 };
 
@@ -628,16 +671,39 @@ const styles = StyleSheet.create({
   chapterButton: {
     backgroundColor: COLORS.bgElevated,
     paddingVertical: 11,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     borderRadius: 10,
     flex: 1,
-    marginHorizontal: 4,
+    marginHorizontal: 3,
     alignItems: "center",
   },
   chapterButtonText: {
     color: COLORS.textSecondary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
+  },
+  completeButton: {
+    backgroundColor: COLORS.bgElevated,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    flex: 1.2,
+    marginHorizontal: 3,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  completeButtonActive: {
+    backgroundColor: COLORS.successMuted,
+    borderColor: COLORS.success,
+  },
+  completeButtonText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  completeButtonTextActive: {
+    color: COLORS.success,
   },
   button: {
     backgroundColor: COLORS.red,

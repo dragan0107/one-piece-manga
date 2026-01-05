@@ -14,7 +14,27 @@ import {
 import {
   initializeChapters,
   discoverNewChapters,
+  getVisitedChapters,
+  getCompletedChapters,
+  getCompletedChaptersSet,
 } from "../utils/chapterStorage";
+
+// Helper to format relative time
+const formatRelativeTime = (dateString) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return `${Math.floor(diffDays / 7)}w ago`;
+};
 
 const ChapterList = ({ navigation }) => {
   const [selectedChapter, setSelectedChapter] = useState("");
@@ -24,6 +44,9 @@ const ChapterList = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [checkingNew, setCheckingNew] = useState(false);
   const [initialLatest, setInitialLatest] = useState(0); // Track what we started with
+  const [visitedChapters, setVisitedChapters] = useState([]); // Recently visited
+  const [completedChapters, setCompletedChapters] = useState([]); // Completed chapters list
+  const [completedSet, setCompletedSet] = useState(new Set()); // For quick lookup
 
   // Generate chapter list from latest to 1
   const generateChapterList = (latest) => {
@@ -35,6 +58,29 @@ const ChapterList = ({ navigation }) => {
     loadChapters();
   }, []);
 
+  // Reload visited/completed when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      loadReadingData();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  const loadReadingData = async () => {
+    try {
+      const [visited, completed, completedSetData] = await Promise.all([
+        getVisitedChapters(),
+        getCompletedChapters(),
+        getCompletedChaptersSet(),
+      ]);
+      setVisitedChapters(visited);
+      setCompletedChapters(completed);
+      setCompletedSet(completedSetData);
+    } catch (error) {
+      console.log("Error loading reading data:", error);
+    }
+  };
+
   const loadChapters = async () => {
     setLoading(true);
     try {
@@ -42,6 +88,8 @@ const ChapterList = ({ navigation }) => {
       setLatestChapter(latest);
       setInitialLatest(latest);
       setChapters(generateChapterList(latest));
+      // Also load reading data on initial load
+      await loadReadingData();
     } catch (error) {
       console.log("Error loading chapters:", error);
       // Fallback to a reasonable default
@@ -108,6 +156,8 @@ const ChapterList = ({ navigation }) => {
 
   const renderChapterItem = ({ item }) => {
     const isNew = item > initialLatest && initialLatest > 0;
+    const isCompleted = completedSet.has(item);
+
     return (
       <TouchableOpacity
         style={styles.chapterItem}
@@ -118,11 +168,79 @@ const ChapterList = ({ navigation }) => {
             <Text style={styles.chapterNumber}>Chapter {item}</Text>
             {isNew && <Text style={styles.newBadge}>NEW</Text>}
           </View>
-          <Text style={styles.chapterArrow}>›</Text>
+          <View style={styles.chapterRightSide}>
+            {isCompleted && (
+              <View style={styles.completedBadge}>
+                <Text style={styles.completedBadgeText}>✓</Text>
+              </View>
+            )}
+            <Text style={styles.chapterArrow}>›</Text>
+          </View>
         </View>
       </TouchableOpacity>
     );
   };
+
+  // Render visited chapter item (for Recently Visited section)
+  const renderVisitedItem = (item) => (
+    <TouchableOpacity
+      key={item.chapter}
+      style={styles.visitedItem}
+      onPress={() => handleChapterPress(item.chapter)}
+    >
+      <Text style={styles.visitedChapter}>Chapter {item.chapter}</Text>
+      <Text style={styles.visitedTime}>
+        {formatRelativeTime(item.visitedAt)}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  // Render completed chapter item (for Completed section)
+  const renderCompletedItem = (chapterNum) => (
+    <TouchableOpacity
+      key={chapterNum}
+      style={styles.completedItem}
+      onPress={() => handleChapterPress(chapterNum)}
+    >
+      <View style={styles.completedItemLeft}>
+        <View style={styles.completedBadgeSmall}>
+          <Text style={styles.completedBadgeTextSmall}>✓</Text>
+        </View>
+        <Text style={styles.completedChapter}>Chapter {chapterNum}</Text>
+      </View>
+      <Text style={styles.chapterArrow}>›</Text>
+    </TouchableOpacity>
+  );
+
+  // List header with Recently Visited and Completed sections
+  const renderListHeader = () => (
+    <View>
+      {/* Recently Visited Section */}
+      {visitedChapters.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>🕐 RECENTLY VISITED</Text>
+          <View style={styles.sectionContent}>
+            {visitedChapters.map(renderVisitedItem)}
+          </View>
+        </View>
+      )}
+
+      {/* Completed Chapters Section */}
+      {completedChapters.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>
+            ✓ COMPLETED ({completedChapters.length})
+          </Text>
+          <View style={styles.sectionContent}>
+            {completedChapters.map(renderCompletedItem)}
+          </View>
+        </View>
+      )}
+
+      {/* All Chapters Label */}
+      <Text style={styles.allChaptersLabel}>📚 ALL CHAPTERS</Text>
+    </View>
+  );
 
   if (loading) {
     return (
@@ -192,6 +310,7 @@ const ChapterList = ({ navigation }) => {
         keyExtractor={(item) => item.toString()}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={true}
+        ListHeaderComponent={renderListHeader}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -205,11 +324,6 @@ const ChapterList = ({ navigation }) => {
         maxToRenderPerBatch={20}
         windowSize={10}
         initialNumToRender={15}
-        getItemLayout={(_, index) => ({
-          length: 68,
-          offset: 68 * index,
-          index,
-        })}
       />
     </View>
   );
@@ -236,6 +350,7 @@ const COLORS = {
 
   // Utility
   success: "#22C55E",
+  successMuted: "rgba(34, 197, 94, 0.15)",
   border: "rgba(255, 255, 255, 0.08)",
 };
 
@@ -377,6 +492,100 @@ const styles = StyleSheet.create({
   chapterArrow: {
     color: COLORS.textMuted,
     fontSize: 20,
+  },
+  chapterRightSide: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  // Completed badge for chapter items
+  completedBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.successMuted,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  completedBadgeText: {
+    color: COLORS.success,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  // Section styles
+  section: {
+    marginBottom: 16,
+  },
+  sectionLabel: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  sectionContent: {
+    backgroundColor: COLORS.bgElevated,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  // Recently Visited items
+  visitedItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  visitedChapter: {
+    color: COLORS.textPrimary,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  visitedTime: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+  },
+  // Completed items
+  completedItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  completedItemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  completedBadgeSmall: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: COLORS.successMuted,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  completedBadgeTextSmall: {
+    color: COLORS.success,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  completedChapter: {
+    color: COLORS.textPrimary,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  // All Chapters label
+  allChaptersLabel: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    marginBottom: 10,
+    marginTop: 4,
   },
 });
 

@@ -229,3 +229,158 @@ export const clearStorage = async () => {
   await AsyncStorage.removeItem(STORAGE_KEY);
   console.log("Storage cleared");
 };
+
+// ============================================
+// VISITED & COMPLETED CHAPTERS (Simple)
+// ============================================
+
+const VISITED_KEY = "@one_piece_visited_chapters";
+const COMPLETED_KEY = "@one_piece_completed_chapters";
+
+/**
+ * Add a chapter to visited list (called when opening a chapter)
+ * Keeps only the last 10 visited, excludes completed chapters
+ */
+export const addVisitedChapter = async (chapterNum) => {
+  try {
+    const [visitedJson, completedJson] = await Promise.all([
+      AsyncStorage.getItem(VISITED_KEY),
+      AsyncStorage.getItem(COMPLETED_KEY),
+    ]);
+    
+    const visited = visitedJson ? JSON.parse(visitedJson) : [];
+    const completed = completedJson ? JSON.parse(completedJson) : [];
+    
+    // Don't add to visited if it's already completed
+    if (completed.includes(chapterNum)) {
+      return;
+    }
+    
+    // Remove if already in visited (will re-add at top)
+    const filtered = visited.filter((v) => v.chapter !== chapterNum);
+    
+    // Add to front with timestamp
+    filtered.unshift({
+      chapter: chapterNum,
+      visitedAt: new Date().toISOString(),
+    });
+    
+    // Keep only last 10
+    const trimmed = filtered.slice(0, 10);
+    
+    await AsyncStorage.setItem(VISITED_KEY, JSON.stringify(trimmed));
+  } catch (error) {
+    console.log("Error adding visited chapter:", error);
+  }
+};
+
+/**
+ * Get recently visited chapters (up to 10, excludes completed)
+ */
+export const getVisitedChapters = async () => {
+  try {
+    const [visitedJson, completedJson] = await Promise.all([
+      AsyncStorage.getItem(VISITED_KEY),
+      AsyncStorage.getItem(COMPLETED_KEY),
+    ]);
+    
+    const visited = visitedJson ? JSON.parse(visitedJson) : [];
+    const completed = completedJson ? JSON.parse(completedJson) : [];
+    
+    // Filter out any that are now completed
+    return visited.filter((v) => !completed.includes(v.chapter));
+  } catch (error) {
+    console.log("Error getting visited chapters:", error);
+    return [];
+  }
+};
+
+/**
+ * Mark a chapter as completed
+ */
+export const markChapterCompleted = async (chapterNum) => {
+  try {
+    const [completedJson, visitedJson] = await Promise.all([
+      AsyncStorage.getItem(COMPLETED_KEY),
+      AsyncStorage.getItem(VISITED_KEY),
+    ]);
+    
+    const completed = completedJson ? JSON.parse(completedJson) : [];
+    const visited = visitedJson ? JSON.parse(visitedJson) : [];
+    
+    // Add to completed if not already there
+    if (!completed.includes(chapterNum)) {
+      completed.push(chapterNum);
+      await AsyncStorage.setItem(COMPLETED_KEY, JSON.stringify(completed));
+    }
+    
+    // Remove from visited
+    const filteredVisited = visited.filter((v) => v.chapter !== chapterNum);
+    if (filteredVisited.length !== visited.length) {
+      await AsyncStorage.setItem(VISITED_KEY, JSON.stringify(filteredVisited));
+    }
+    
+    console.log(`✓ Chapter ${chapterNum} marked as completed`);
+  } catch (error) {
+    console.log("Error marking chapter completed:", error);
+  }
+};
+
+/**
+ * Unmark a chapter as completed
+ */
+export const unmarkChapterCompleted = async (chapterNum) => {
+  try {
+    const completedJson = await AsyncStorage.getItem(COMPLETED_KEY);
+    const completed = completedJson ? JSON.parse(completedJson) : [];
+    
+    const filtered = completed.filter((c) => c !== chapterNum);
+    await AsyncStorage.setItem(COMPLETED_KEY, JSON.stringify(filtered));
+    
+    console.log(`✗ Chapter ${chapterNum} unmarked as completed`);
+  } catch (error) {
+    console.log("Error unmarking chapter completed:", error);
+  }
+};
+
+/**
+ * Check if a chapter is completed
+ */
+export const isChapterCompleted = async (chapterNum) => {
+  try {
+    const completedJson = await AsyncStorage.getItem(COMPLETED_KEY);
+    const completed = completedJson ? JSON.parse(completedJson) : [];
+    return completed.includes(chapterNum);
+  } catch (error) {
+    console.log("Error checking chapter completed:", error);
+    return false;
+  }
+};
+
+/**
+ * Get all completed chapters (sorted descending)
+ */
+export const getCompletedChapters = async () => {
+  try {
+    const completedJson = await AsyncStorage.getItem(COMPLETED_KEY);
+    const completed = completedJson ? JSON.parse(completedJson) : [];
+    return completed.sort((a, b) => b - a); // Sort descending
+  } catch (error) {
+    console.log("Error getting completed chapters:", error);
+    return [];
+  }
+};
+
+/**
+ * Get set of completed chapters for quick lookup
+ */
+export const getCompletedChaptersSet = async () => {
+  try {
+    const completedJson = await AsyncStorage.getItem(COMPLETED_KEY);
+    const completed = completedJson ? JSON.parse(completedJson) : [];
+    return new Set(completed);
+  } catch (error) {
+    console.log("Error getting completed set:", error);
+    return new Set();
+  }
+};
