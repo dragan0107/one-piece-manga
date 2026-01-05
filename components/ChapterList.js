@@ -160,7 +160,7 @@ const ChapterList = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6B35" />
+        <ActivityIndicator size="large" color="#E6A54A" />
         <Text style={styles.loadingText}>
           {latestChapter === 0
             ? "Discovering chapters..."
@@ -186,7 +186,7 @@ const ChapterList = ({ navigation }) => {
             disabled={checkingNew}
           >
             {checkingNew ? (
-              <ActivityIndicator size="small" color="#FF6B35" />
+              <ActivityIndicator size="small" color="#E6A54A" />
             ) : (
               <Text style={styles.refreshButtonText}>🔄 Check New</Text>
             )}
@@ -228,8 +228,9 @@ const ChapterList = ({ navigation }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#FF6B35"
-            colors={["#FF6B35"]}
+            tintColor="#E6A54A"
+            colors={["#E6A54A"]}
+            progressBackgroundColor="#16161A"
           />
         }
         removeClippedSubviews={true}
@@ -246,146 +247,195 @@ const ChapterList = ({ navigation }) => {
   );
 };
 
+// One Piece Treasure Gold Theme
+const COLORS = {
+  // Backgrounds
+  bgDeep: "#0D0D0F",
+  bgSurface: "#16161A",
+  bgElevated: "#1E1E24",
+  bgCard: "#252530",
+
+  // Gold accent spectrum
+  gold: "#E6A54A",
+  goldDark: "#C8893A",
+  goldLight: "#F5C97A",
+  goldMuted: "rgba(230, 165, 74, 0.15)",
+
+  // Text
+  textPrimary: "#FAFAFA",
+  textSecondary: "#B8B8C0",
+  textMuted: "#6B6B78",
+
+  // Accents
+  success: "#4ADE80",
+  error: "#EF4444",
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1a1a1a",
+    backgroundColor: COLORS.bgDeep,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#1a1a1a",
+    backgroundColor: COLORS.bgDeep,
   },
   loadingText: {
-    color: "#fff",
-    marginTop: 16,
-    fontSize: 16,
+    color: COLORS.textPrimary,
+    marginTop: 20,
+    fontSize: 17,
+    fontWeight: "600",
+    letterSpacing: 0.3,
   },
   loadingSubtext: {
-    color: "#888",
+    color: COLORS.textMuted,
     marginTop: 8,
-    fontSize: 12,
+    fontSize: 13,
   },
   header: {
-    padding: 20,
-    paddingTop: 40,
-    backgroundColor: "#0a0a0a",
+    padding: 24,
+    paddingTop: 56,
+    paddingBottom: 20,
+    backgroundColor: COLORS.bgSurface,
     borderBottomWidth: 1,
-    borderBottomColor: "#333",
+    borderBottomColor: COLORS.goldMuted,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#FF6B35",
-    marginBottom: 4,
+    fontSize: 32,
+    fontWeight: "800",
+    color: COLORS.gold,
+    marginBottom: 6,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    color: "#aaa",
-    marginBottom: 12,
+    color: COLORS.textSecondary,
+    marginBottom: 16,
+    letterSpacing: 0.2,
   },
   buttonRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: 10,
   },
   refreshButton: {
     flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: "#2a2a2a",
-    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: COLORS.bgElevated,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 40,
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: COLORS.goldMuted,
   },
   refreshButtonText: {
-    color: "#FF6B35",
+    color: COLORS.gold,
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   rediscoverButton: {
     flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: "#2a2a2a",
-    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: COLORS.bgElevated,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
   },
   rediscoverButtonText: {
-    color: "#aaa",
+    color: COLORS.textSecondary,
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   searchContainer: {
     flexDirection: "row",
     padding: 16,
-    backgroundColor: "#0a0a0a",
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: COLORS.bgSurface,
     borderBottomWidth: 1,
-    borderBottomColor: "#333",
+    borderBottomColor: "rgba(255,255,255,0.04)",
   },
   input: {
     flex: 1,
-    backgroundColor: "#2a2a2a",
-    color: "#fff",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: COLORS.bgElevated,
+    color: COLORS.textPrimary,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 12,
     fontSize: 16,
-    marginRight: 8,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
   },
   goButton: {
-    backgroundColor: "#FF6B35",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: COLORS.gold,
+    paddingHorizontal: 26,
+    paddingVertical: 14,
+    borderRadius: 12,
     justifyContent: "center",
+    shadowColor: COLORS.gold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   goButtonText: {
-    color: "#fff",
+    color: COLORS.bgDeep,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   listContainer: {
     padding: 16,
+    paddingTop: 12,
   },
   chapterItem: {
-    backgroundColor: "#2a2a2a",
-    borderRadius: 12,
-    marginBottom: 12,
+    backgroundColor: COLORS.bgElevated,
+    borderRadius: 14,
+    marginBottom: 10,
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.04)",
   },
   chapterContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
+    padding: 18,
+    paddingVertical: 16,
   },
   chapterInfo: {
     flexDirection: "row",
     alignItems: "center",
   },
   chapterNumber: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "500",
+    color: COLORS.textPrimary,
+    fontSize: 17,
+    fontWeight: "600",
+    letterSpacing: 0.2,
   },
   newBadge: {
-    marginLeft: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    backgroundColor: "#FF6B35",
-    borderRadius: 4,
-    color: "#fff",
+    marginLeft: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: COLORS.gold,
+    borderRadius: 6,
+    color: COLORS.bgDeep,
     fontSize: 10,
-    fontWeight: "bold",
+    fontWeight: "800",
+    letterSpacing: 0.5,
     overflow: "hidden",
   },
   chapterArrow: {
-    color: "#FF6B35",
-    fontSize: 24,
-    fontWeight: "bold",
+    color: COLORS.goldDark,
+    fontSize: 22,
+    fontWeight: "300",
+    opacity: 0.7,
   },
 });
 

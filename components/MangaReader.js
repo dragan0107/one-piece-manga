@@ -144,7 +144,7 @@ const ZoomablePage = memo(
             source={{ uri: getImageUrl(chapter, page, urlIndex) }}
             style={{ width: imageWidth, height: imageHeight }}
             contentFit="contain"
-            contentPosition={{ top: "20%" }}
+            contentPosition={{ top: "45%" }}
             transition={100}
             cachePolicy="disk"
             onLoad={handleLoad}
@@ -386,7 +386,7 @@ const MangaReader = ({ route, navigation }) => {
     <View style={styles.container}>
       {loading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#FF6B35" />
+          <ActivityIndicator size="large" color="#E6A54A" />
           <Text style={styles.loadingText}>Loading Chapter {chapter}...</Text>
         </View>
       )}
@@ -475,10 +475,33 @@ const MangaReader = ({ route, navigation }) => {
   );
 };
 
+// One Piece Treasure Gold Theme
+const COLORS = {
+  // Backgrounds
+  bgDeep: "#0D0D0F",
+  bgSurface: "#16161A",
+  bgElevated: "#1E1E24",
+  bgCard: "#252530",
+
+  // Gold accent spectrum
+  gold: "#E6A54A",
+  goldDark: "#C8893A",
+  goldLight: "#F5C97A",
+  goldMuted: "rgba(230, 165, 74, 0.15)",
+
+  // Text
+  textPrimary: "#FAFAFA",
+  textSecondary: "#B8B8C0",
+  textMuted: "#6B6B78",
+
+  // Accents
+  error: "#EF4444",
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: COLORS.bgDeep,
   },
   flatList: {
     flex: 1,
@@ -488,10 +511,10 @@ const styles = StyleSheet.create({
     height: PAGE_HEIGHT,
     justifyContent: "flex-start",
     alignItems: "center",
-    backgroundColor: "#000",
+    backgroundColor: COLORS.bgDeep,
   },
   imageZoom: {
-    backgroundColor: "#000",
+    backgroundColor: COLORS.bgDeep,
   },
   image: {
     textAlign: "center",
@@ -506,33 +529,36 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    backgroundColor: COLORS.bgDeep,
     zIndex: 10,
   },
   loadingText: {
-    color: "#fff",
-    marginTop: 16,
-    fontSize: 16,
+    color: COLORS.textPrimary,
+    marginTop: 20,
+    fontSize: 17,
+    fontWeight: "600",
+    letterSpacing: 0.3,
   },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#1a1a1a",
-    padding: 20,
+    backgroundColor: COLORS.bgDeep,
+    padding: 24,
   },
   errorText: {
-    color: "#ff4444",
+    color: COLORS.error,
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: "700",
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   errorSubtext: {
-    color: "#888",
+    color: COLORS.textMuted,
     fontSize: 14,
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: 24,
+    lineHeight: 20,
   },
   errorPage: {
     position: "absolute",
@@ -540,7 +566,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   errorPageText: {
-    color: "#666",
+    color: COLORS.textMuted,
     fontSize: 14,
   },
   controlsContainer: {
@@ -548,82 +574,99 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.9)",
-    paddingVertical: 12,
+    backgroundColor: COLORS.bgSurface,
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingBottom: 28,
     borderTopWidth: 1,
-    borderTopColor: "#333",
+    borderTopColor: COLORS.goldMuted,
   },
   controlsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   controlButton: {
-    backgroundColor: "#FF6B35",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    minWidth: 80,
+    backgroundColor: COLORS.gold,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    borderRadius: 12,
+    minWidth: 88,
     alignItems: "center",
+    shadowColor: COLORS.gold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   controlButtonDisabled: {
-    backgroundColor: "#444",
-    opacity: 0.5,
+    backgroundColor: COLORS.bgCard,
+    opacity: 0.6,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   controlButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+    color: COLORS.bgDeep,
+    fontSize: 15,
+    fontWeight: "700",
   },
   pageInfo: {
     alignItems: "center",
   },
   pageText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
+    color: COLORS.textPrimary,
+    fontSize: 20,
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
   chapterText: {
-    color: "#aaa",
+    color: COLORS.gold,
     fontSize: 12,
-    marginTop: 2,
+    marginTop: 4,
+    fontWeight: "600",
+    letterSpacing: 0.3,
   },
   chapterControls: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 8,
-    paddingTop: 8,
+    marginTop: 10,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#333",
+    borderTopColor: "rgba(255,255,255,0.06)",
   },
   chapterButton: {
-    backgroundColor: "#333",
-    paddingVertical: 10,
+    backgroundColor: COLORS.bgElevated,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     flex: 1,
-    marginHorizontal: 4,
+    marginHorizontal: 5,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.04)",
   },
   chapterButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "500",
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
   },
   button: {
-    backgroundColor: "#FF6B35",
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 8,
-    marginTop: 16,
+    backgroundColor: COLORS.gold,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 14,
+    marginTop: 20,
+    shadowColor: COLORS.gold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   buttonText: {
-    color: "#fff",
+    color: COLORS.bgDeep,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
 });
 

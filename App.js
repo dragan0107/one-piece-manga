@@ -7,6 +7,14 @@ import ChapterList from "./components/ChapterList";
 
 const Stack = createNativeStackNavigator();
 
+// One Piece Treasure Gold Theme
+const THEME = {
+  background: "#0D0D0F",
+  surface: "#16161A",
+  gold: "#E6A54A",
+  textPrimary: "#FAFAFA",
+};
+
 export default function App() {
   return (
     <NavigationContainer>
@@ -15,23 +23,35 @@ export default function App() {
         initialRouteName="ChapterList"
         screenOptions={{
           headerStyle: {
-            backgroundColor: "#1a1a1a",
+            backgroundColor: THEME.surface,
+            borderBottomWidth: 1,
+            borderBottomColor: "rgba(230, 165, 74, 0.15)",
           },
-          headerTintColor: "#fff",
+          headerTintColor: THEME.gold,
           headerTitleStyle: {
-            fontWeight: "bold",
+            fontWeight: "700",
+            fontSize: 18,
+          },
+          contentStyle: {
+            backgroundColor: THEME.background,
           },
         }}
       >
         <Stack.Screen
           name="ChapterList"
           component={ChapterList}
-          options={{ title: "One Piece Manga" }}
+          options={{
+            title: "One Piece",
+            headerShown: false,
+          }}
         />
         <Stack.Screen
           name="MangaReader"
           component={MangaReader}
-          options={{ title: "Reading..." }}
+          options={{
+            title: "Reading",
+            headerShown: false,
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>
