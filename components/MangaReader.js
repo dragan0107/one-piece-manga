@@ -48,19 +48,25 @@ const getImageUrl = (chapter, page, urlIndex = 0) => {
 
 // Custom pinch-zoom component that ONLY captures 2-finger gestures
 // Single-finger gestures pass through to FlatList for scrolling
+// Uses 2x resolution for sharp zooming
 const ZoomablePage = memo(
   ({ chapter, page, onLoad, onError, onFinalError, onZoomChange }) => {
     const [urlIndex, setUrlIndex] = useState(0);
     const [hasTriedAll, setHasTriedAll] = useState(false);
 
+    // 2x image dimensions for sharp zoom
+    const imageWidth = SCREEN_WIDTH * IMAGE_SCALE;
+    const imageHeight = PAGE_HEIGHT * IMAGE_SCALE;
+    const minScale = 1 / IMAGE_SCALE; // 0.5
+
     // Animated values for transform
-    const scale = useRef(new Animated.Value(1)).current;
+    const scale = useRef(new Animated.Value(minScale)).current;
     const translateX = useRef(new Animated.Value(0)).current;
     const translateY = useRef(new Animated.Value(0)).current;
 
     // Refs for gesture tracking
-    const baseScale = useRef(1);
-    const lastScale = useRef(1);
+    const baseScale = useRef(minScale);
+    const lastScale = useRef(minScale);
     const baseTranslateX = useRef(0);
     const baseTranslateY = useRef(0);
     const lastTranslateX = useRef(0);
@@ -74,11 +80,11 @@ const ZoomablePage = memo(
     useEffect(() => {
       setUrlIndex(0);
       setHasTriedAll(false);
-      scale.setValue(1);
+      scale.setValue(minScale);
       translateX.setValue(0);
       translateY.setValue(0);
-      baseScale.current = 1;
-      lastScale.current = 1;
+      baseScale.current = minScale;
+      lastScale.current = minScale;
       baseTranslateX.current = 0;
       baseTranslateY.current = 0;
       lastTranslateX.current = 0;
@@ -110,9 +116,12 @@ const ZoomablePage = memo(
 
     // Clamp translation to keep image within bounds
     const clampTranslation = (x, y, currentScale) => {
-      if (currentScale <= 1) return { x: 0, y: 0 };
-      const maxX = (SCREEN_WIDTH * (currentScale - 1)) / 2;
-      const maxY = (PAGE_HEIGHT * (currentScale - 1)) / 2;
+      if (currentScale <= minScale) return { x: 0, y: 0 };
+      // Calculate how much the scaled image exceeds the viewport
+      const scaledWidth = imageWidth * currentScale;
+      const scaledHeight = imageHeight * currentScale;
+      const maxX = Math.max(0, (scaledWidth - SCREEN_WIDTH) / 2);
+      const maxY = Math.max(0, (scaledHeight - PAGE_HEIGHT) / 2);
       return {
         x: Math.max(-maxX, Math.min(maxX, x)),
         y: Math.max(-maxY, Math.min(maxY, y)),
@@ -178,13 +187,14 @@ const ZoomablePage = memo(
             const currentDistance = getDistance(touches);
             const scaleRatio = currentDistance / initialPinchDistance.current;
             let newScale = baseScale.current * scaleRatio;
-            newScale = Math.max(1, Math.min(4, newScale)); // Clamp 1-4x
+            // Clamp: minScale (0.5) to 2 (= 4x effective zoom)
+            newScale = Math.max(minScale, Math.min(2, newScale));
 
             scale.setValue(newScale);
             lastScale.current = newScale;
 
             // Update zoom state
-            const zoomed = newScale > 1.05;
+            const zoomed = newScale > minScale + 0.05;
             if (zoomed !== isZoomedRef.current) {
               isZoomedRef.current = zoomed;
               onZoomChange?.(zoomed);
@@ -214,10 +224,13 @@ const ZoomablePage = memo(
           isPinching.current = false;
           isPanning.current = false;
 
-          // Snap to 1x if close to it
-          if (lastScale.current < 1.1) {
+          // Snap to minScale if close to it
+          if (lastScale.current < minScale + 0.1) {
             Animated.parallel([
-              Animated.spring(scale, { toValue: 1, useNativeDriver: true }),
+              Animated.spring(scale, {
+                toValue: minScale,
+                useNativeDriver: true,
+              }),
               Animated.spring(translateX, {
                 toValue: 0,
                 useNativeDriver: true,
@@ -227,7 +240,7 @@ const ZoomablePage = memo(
                 useNativeDriver: true,
               }),
             ]).start();
-            lastScale.current = 1;
+            lastScale.current = minScale;
             lastTranslateX.current = 0;
             lastTranslateY.current = 0;
             isZoomedRef.current = false;
@@ -255,7 +268,7 @@ const ZoomablePage = memo(
         >
           <Image
             source={{ uri: getImageUrl(chapter, page, urlIndex) }}
-            style={styles.pageImage}
+            style={{ width: imageWidth, height: imageHeight }}
             contentFit="contain"
             contentPosition="center"
             transition={100}
@@ -676,12 +689,8 @@ const styles = StyleSheet.create({
   zoomContainer: {
     width: SCREEN_WIDTH,
     height: PAGE_HEIGHT,
-    justifyContent: "flex-start",
+    justifyContent: "center",
     alignItems: "center",
-  },
-  pageImage: {
-    width: SCREEN_WIDTH,
-    height: PAGE_HEIGHT,
   },
   loadingOverlay: {
     position: "absolute",
