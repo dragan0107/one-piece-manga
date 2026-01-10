@@ -14,9 +14,10 @@ import {
   Text,
   ActivityIndicator,
   FlatList,
+  Animated,
+  PanResponder,
 } from "react-native";
 import { Image } from "expo-image";
-import ImageZoom from "react-native-image-pan-zoom";
 import {
   addVisitedChapter,
   isChapterCompleted,
@@ -45,118 +46,224 @@ const getImageUrl = (chapter, page, urlIndex = 0) => {
   return `${BASE_URLS[urlIndex]}/${chapterNum}-${pageNum}.png`;
 };
 
-// Memoized zoomable image component with high-res support
+// Custom pinch-zoom component that ONLY captures 2-finger gestures
+// Single-finger gestures pass through to FlatList for scrolling
 const ZoomablePage = memo(
   ({ chapter, page, onLoad, onError, onFinalError, onZoomChange }) => {
     const [urlIndex, setUrlIndex] = useState(0);
     const [hasTriedAll, setHasTriedAll] = useState(false);
-    const [isZoomed, setIsZoomed] = useState(false);
-    const imageZoomRef = useRef(null);
 
-    // High-res dimensions - use FULL PAGE_HEIGHT for image (no padding)
-    const imageWidth = SCREEN_WIDTH * IMAGE_SCALE;
-    const imageHeight = PAGE_HEIGHT * IMAGE_SCALE;
+    // Animated values for transform
+    const scale = useRef(new Animated.Value(1)).current;
+    const translateX = useRef(new Animated.Value(0)).current;
+    const translateY = useRef(new Animated.Value(0)).current;
 
-    const minScale = 1 / IMAGE_SCALE;
+    // Refs for gesture tracking
+    const baseScale = useRef(1);
+    const lastScale = useRef(1);
+    const baseTranslateX = useRef(0);
+    const baseTranslateY = useRef(0);
+    const lastTranslateX = useRef(0);
+    const lastTranslateY = useRef(0);
+    const initialPinchDistance = useRef(0);
+    const isZoomedRef = useRef(false);
+    const isPinching = useRef(false);
+    const isPanning = useRef(false);
 
-    // Reset when chapter changes
+    // Reset when chapter/page changes
     useEffect(() => {
       setUrlIndex(0);
       setHasTriedAll(false);
-      setIsZoomed(false);
-    }, [chapter]);
-
-    // Position image at top after component mounts
-    useEffect(() => {
-      // Small delay to ensure ImageZoom is ready
-      const timer = setTimeout(() => {
-        if (imageZoomRef.current) {
-          imageZoomRef.current.centerOn({
-            x: 0,
-            y: 0,
-            scale: minScale,
-            duration: 0,
-          });
-        }
-      }, 50);
-      return () => clearTimeout(timer);
-    }, [minScale, chapter, page]);
+      scale.setValue(1);
+      translateX.setValue(0);
+      translateY.setValue(0);
+      baseScale.current = 1;
+      lastScale.current = 1;
+      baseTranslateX.current = 0;
+      baseTranslateY.current = 0;
+      lastTranslateX.current = 0;
+      lastTranslateY.current = 0;
+      isZoomedRef.current = false;
+      onZoomChange?.(false);
+    }, [chapter, page]);
 
     const handleLoad = useCallback(() => {
-      // Re-center to top position after image loads
-      if (imageZoomRef.current) {
-        imageZoomRef.current.centerOn({
-          x: 0,
-          y: 0,
-          scale: minScale,
-          duration: 0,
-        });
-      }
       onLoad(urlIndex);
-    }, [onLoad, urlIndex, minScale]);
+    }, [onLoad, urlIndex]);
 
     const handleError = useCallback(() => {
       if (urlIndex < BASE_URLS.length - 1) {
-        // Try next URL
         setUrlIndex((prev) => prev + 1);
       } else {
-        // All URLs failed
         setHasTriedAll(true);
         onFinalError();
       }
     }, [urlIndex, onFinalError]);
 
-    // Track when user zooms in/out
-    const handleMove = useCallback(
-      (position) => {
-        const zoomed = position.scale > minScale + 0.05;
-        if (zoomed !== isZoomed) {
-          setIsZoomed(zoomed);
-          onZoomChange?.(zoomed);
-        }
-      },
-      [minScale, isZoomed, onZoomChange]
-    );
+    // Calculate distance between two touch points
+    const getDistance = (touches) => {
+      const [t1, t2] = touches;
+      const dx = t1.pageX - t2.pageX;
+      const dy = t1.pageY - t2.pageY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
 
-    // Reset zoom to initial state
-    const handleDoubleClick = useCallback(() => {
-      // Do nothing - we want to disable double-click zoom entirely
-    }, []);
+    // Clamp translation to keep image within bounds
+    const clampTranslation = (x, y, currentScale) => {
+      if (currentScale <= 1) return { x: 0, y: 0 };
+      const maxX = (SCREEN_WIDTH * (currentScale - 1)) / 2;
+      const maxY = (PAGE_HEIGHT * (currentScale - 1)) / 2;
+      return {
+        x: Math.max(-maxX, Math.min(maxX, x)),
+        y: Math.max(-maxY, Math.min(maxY, y)),
+      };
+    };
+
+    const panResponder = useRef(
+      PanResponder.create({
+        // Only claim responder for 2-finger gestures OR when zoomed
+        onStartShouldSetPanResponder: (evt) => {
+          // 2 fingers = pinch, claim it
+          if (evt.nativeEvent.touches.length >= 2) {
+            return true;
+          }
+          // 1 finger + zoomed = pan, claim it
+          if (isZoomedRef.current && evt.nativeEvent.touches.length === 1) {
+            return true;
+          }
+          // 1 finger + not zoomed = let FlatList scroll
+          return false;
+        },
+
+        onMoveShouldSetPanResponder: (evt) => {
+          // Same logic as above
+          if (evt.nativeEvent.touches.length >= 2) {
+            return true;
+          }
+          if (isZoomedRef.current && evt.nativeEvent.touches.length === 1) {
+            return true;
+          }
+          return false;
+        },
+
+        onPanResponderGrant: (evt) => {
+          const touches = evt.nativeEvent.touches;
+          if (touches.length >= 2) {
+            isPinching.current = true;
+            isPanning.current = false;
+            initialPinchDistance.current = getDistance(touches);
+            baseScale.current = lastScale.current;
+          } else if (isZoomedRef.current) {
+            isPanning.current = true;
+            isPinching.current = false;
+            baseTranslateX.current = lastTranslateX.current;
+            baseTranslateY.current = lastTranslateY.current;
+          }
+        },
+
+        onPanResponderMove: (evt, gestureState) => {
+          const touches = evt.nativeEvent.touches;
+
+          // Handle transition from pan to pinch when second finger added
+          if (touches.length >= 2) {
+            if (!isPinching.current) {
+              // Switching from pan to pinch
+              isPinching.current = true;
+              isPanning.current = false;
+              initialPinchDistance.current = getDistance(touches);
+              baseScale.current = lastScale.current;
+            }
+
+            // Pinch zoom
+            const currentDistance = getDistance(touches);
+            const scaleRatio = currentDistance / initialPinchDistance.current;
+            let newScale = baseScale.current * scaleRatio;
+            newScale = Math.max(1, Math.min(4, newScale)); // Clamp 1-4x
+
+            scale.setValue(newScale);
+            lastScale.current = newScale;
+
+            // Update zoom state
+            const zoomed = newScale > 1.05;
+            if (zoomed !== isZoomedRef.current) {
+              isZoomedRef.current = zoomed;
+              onZoomChange?.(zoomed);
+            }
+          } else if (touches.length === 1 && isZoomedRef.current) {
+            if (!isPanning.current) {
+              // Switching from pinch to pan (one finger lifted)
+              isPanning.current = true;
+              isPinching.current = false;
+              baseTranslateX.current = lastTranslateX.current;
+              baseTranslateY.current = lastTranslateY.current;
+            }
+
+            // Pan when zoomed
+            const newX = baseTranslateX.current + gestureState.dx;
+            const newY = baseTranslateY.current + gestureState.dy;
+            const clamped = clampTranslation(newX, newY, lastScale.current);
+
+            translateX.setValue(clamped.x);
+            translateY.setValue(clamped.y);
+            lastTranslateX.current = clamped.x;
+            lastTranslateY.current = clamped.y;
+          }
+        },
+
+        onPanResponderRelease: () => {
+          isPinching.current = false;
+          isPanning.current = false;
+
+          // Snap to 1x if close to it
+          if (lastScale.current < 1.1) {
+            Animated.parallel([
+              Animated.spring(scale, { toValue: 1, useNativeDriver: true }),
+              Animated.spring(translateX, {
+                toValue: 0,
+                useNativeDriver: true,
+              }),
+              Animated.spring(translateY, {
+                toValue: 0,
+                useNativeDriver: true,
+              }),
+            ]).start();
+            lastScale.current = 1;
+            lastTranslateX.current = 0;
+            lastTranslateY.current = 0;
+            isZoomedRef.current = false;
+            onZoomChange?.(false);
+          }
+        },
+
+        onPanResponderTerminate: () => {
+          isPinching.current = false;
+          isPanning.current = false;
+        },
+      })
+    ).current;
 
     return (
       <View style={styles.pageContainer}>
-        <ImageZoom
-          ref={imageZoomRef}
-          cropWidth={SCREEN_WIDTH}
-          cropHeight={PAGE_HEIGHT}
-          imageWidth={imageWidth}
-          imageHeight={imageHeight}
-          minScale={minScale}
-          maxScale={4}
-          enableSwipeDown={false}
-          enableCenterFocus={false}
-          enableDoubleClickZoom={false}
-          doubleClickInterval={0}
-          onMove={handleMove}
-          onDoubleClick={handleDoubleClick}
-          style={styles.imageZoom}
-          useNativeDriver={true}
-          panToMove={true}
-          pinchToZoom={true}
-          clickDistance={10}
-          horizontalOuterRangeOffset={() => {}}
+        <Animated.View
+          style={[
+            styles.zoomContainer,
+            {
+              transform: [{ translateX }, { translateY }, { scale }],
+            },
+          ]}
+          {...panResponder.panHandlers}
         >
           <Image
             source={{ uri: getImageUrl(chapter, page, urlIndex) }}
-            style={{ width: imageWidth, height: imageHeight }}
+            style={styles.pageImage}
             contentFit="contain"
-            contentPosition={{ top: "45%" }}
+            contentPosition="center"
             transition={100}
             cachePolicy="disk"
             onLoad={handleLoad}
             onError={handleError}
           />
-        </ImageZoom>
+        </Animated.View>
         {hasTriedAll && (
           <View style={styles.errorPage}>
             <Text style={styles.errorPageText}>Page {page} not available</Text>
@@ -563,12 +670,15 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     alignItems: "center",
     backgroundColor: COLORS.bgDeep,
+    overflow: "hidden",
   },
-  imageZoom: {
-    backgroundColor: COLORS.bgDeep,
+  zoomContainer: {
+    width: SCREEN_WIDTH,
+    height: PAGE_HEIGHT,
+    justifyContent: "flex-start",
+    alignItems: "center",
   },
-  image: {
-    textAlign: "center",
+  pageImage: {
     width: SCREEN_WIDTH,
     height: PAGE_HEIGHT,
   },
