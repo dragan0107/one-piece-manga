@@ -539,6 +539,7 @@ const MangaReader = ({ route, navigation }) => {
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         style={styles.flatList}
+        contentContainerStyle={{ paddingBottom: CONTROLS_HEIGHT }}
         snapToInterval={PAGE_HEIGHT}
         snapToAlignment="start"
         decelerationRate="fast"
