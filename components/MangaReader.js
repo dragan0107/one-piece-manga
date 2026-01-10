@@ -18,8 +18,13 @@ import {
   markChapterCompleted,
   unmarkChapterCompleted,
 } from "../utils/chapterStorage";
-import { PAGE_HEIGHT, CONTROLS_HEIGHT } from "../utils/mangaConfig";
+import {
+  PAGE_HEIGHT,
+  CONTROLS_HEIGHT,
+  getImageUrl,
+} from "../utils/mangaConfig";
 import { styles, COLORS } from "./manga/styles";
+import { Image } from "expo-image";
 import ZoomablePage from "./manga/ZoomablePage";
 import ReaderControls from "./manga/ReaderControls";
 
@@ -40,22 +45,31 @@ const MangaReader = ({ route, navigation }) => {
   const [isCompleted, setIsCompleted] = useState(false);
   const [isColored, setIsColored] = useState(false);
   const [coloredAvailable, setColoredAvailable] = useState(false);
+  const [checkingColored, setCheckingColored] = useState(true);
   const flatListRef = useRef(null);
   const hasAddedToVisited = useRef(false);
 
-  // Digital Colored Comics are available up to approximately this chapter
-  const COLORED_MAX_CHAPTER = 1100;
-
-  // Check completion status and colored availability on mount
+  // Check completion status on mount
   useEffect(() => {
     hasAddedToVisited.current = false;
     isChapterCompleted(chapter).then(setIsCompleted);
 
-    // Colored versions are available for chapters up to ~1100
-    // The actual availability will be confirmed when loading the first page
-    setColoredAvailable(chapter <= COLORED_MAX_CHAPTER);
+    // Reset colored state for new chapter - will be checked via probe image
+    setColoredAvailable(false);
     setIsColored(false);
+    setCheckingColored(true);
   }, [chapter]);
+
+  // Handlers for the colored availability probe
+  const handleColoredProbeLoad = useCallback(() => {
+    setColoredAvailable(true);
+    setCheckingColored(false);
+  }, []);
+
+  const handleColoredProbeError = useCallback(() => {
+    setColoredAvailable(false);
+    setCheckingColored(false);
+  }, []);
 
   // Toggle completion status
   const toggleCompleted = async () => {
@@ -293,6 +307,16 @@ const MangaReader = ({ route, navigation }) => {
 
   return (
     <View style={styles.container}>
+      {/* Invisible probe to check if colored version exists */}
+      {checkingColored && (
+        <Image
+          source={{ uri: getImageUrl(chapter, 1, 0, true) }}
+          style={{ width: 1, height: 1, position: "absolute", opacity: 0 }}
+          onLoad={handleColoredProbeLoad}
+          onError={handleColoredProbeError}
+        />
+      )}
+
       {loading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator
